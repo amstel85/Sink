@@ -1,0 +1,7 @@
+# WeConnect / we-co.me link shortener
+# Reports about this host, or about any we-connect.co.il service, reach the same inbox.
+
+Contact: mailto:admin@we-connect.co.il
+Expires: 2027-09-22T00:00:00.000Z
+Preferred-Languages: he, en
+Canonical: https://we-co.me/.well-known/security.txt
