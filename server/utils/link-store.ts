@@ -43,12 +43,30 @@ async function writeThroughCache(event: H3Event, link: Link, effectiveExpiresAt?
 }
 
 export async function getLink(event: H3Event, slug: string, cacheTtl?: number): Promise<Link | null> {
-  const cached = await readLegacyKvLink(event, slug, cacheTtl)
-  if (cached.link)
-    return cached.link
+  // KV is a read cache once the KV-to-D1 migration has completed, so a KV failure (for example an
+  // exhausted daily read quota) must not take redirects down while D1 can still answer.
+  let kvError: unknown = null
+  try {
+    const cached = await readLegacyKvLink(event, slug, cacheTtl)
+    if (cached.link)
+      return cached.link
+  }
+  catch (error) {
+    kvError = error
+    console.error({
+      event: 'link_cache.operation.failed',
+      operation: 'get',
+      slug,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
 
-  if (!await readCompletedLinkMigrationMarker(event.context.cloudflare.env))
+  if (!await readCompletedLinkMigrationMarker(event.context.cloudflare.env)) {
+    // Before the migration completes KV is still the source of truth for pre-D1 links: keep failing loudly.
+    if (kvError)
+      throw kvError
     return null
+  }
 
   const stored = await d1GetActiveLink(event, slug)
   if (!stored)
